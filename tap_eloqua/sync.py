@@ -144,7 +144,7 @@ class ActivityExportTooLarge(Exception):
     """
     pass
 
-def sync_bulk_obj(client, catalog, state, start_date, stream_name, bulk_page_size, activity_type=None, end_date=None):
+def sync_bulk_obj(client, catalog, state, start_date, end_date, stream_name, bulk_page_size, activity_type=None):
     LOGGER.info('{} - Starting export'.format(stream_name))
 
     stream = catalog.get_stream(stream_name)
@@ -304,17 +304,24 @@ def sync_bulk_obj(client, catalog, state, start_date, stream_name, bulk_page_siz
                   last_date,
                   activity_type=activity_type)
 
-def sync_static_endpoint(client, catalog, state, start_date, stream_id, path, updated_at_col):
+def sync_static_endpoint(client, catalog, state, start_date, end_date, stream_id, path, updated_at_col):
     write_schema(catalog, stream_id)
 
     last_date_raw = get_bookmark(state, stream_id, start_date)
     last_date = pendulum.parse(last_date_raw).to_datetime_string()
     search = "{}>='{}'".format(updated_at_col, last_date)
 
+    if end_date:
+        end_date = end_date.to_datetime_string
+        search = "{}{}<'{}'".format(search, updated_at_col, end_date)
+        date_range = "from {} to {}".format(last_date, end_date)
+    else:
+        date_range = "since {}".format(last_date)
+
     page = 1
     count = 1000
     while True:
-        LOGGER.info('Syncing {} since {} - page {}'.format(stream_id, last_date, page))
+        LOGGER.info('Syncing {} {} - page {}'.format(stream_id, date_range, page))
         data = client.get(
             '/api/REST/2.0/{}'.format(path),
             params={
@@ -373,11 +380,13 @@ def sync_activity_stream(client,
                          state,
                          catalog,
                          start_date,
+                         end_date,
                          bulk_page_size,
                          activity_type):
     finished = False
-    sync_start = pendulum.now('UTC')
-    end_date = sync_start
+    if not end_date:
+        end_date = pendulum.now('UTC')
+    batch_end = end_date
     while not finished:
         try:
             # Get latest bookmark to adjust time window from, if needed
@@ -389,28 +398,30 @@ def sync_activity_stream(client,
                           catalog,
                           state,
                           start_date,
+                          batch_end,
                           stream_name,
                           bulk_page_size,
-                          activity_type=activity_type,
-                          end_date=end_date)
-            if end_date >= sync_start:
+                          activity_type=activity_type)
+            if batch_end >= end_date:
                 finished = True
             else:
-                # If not done, sync again to now()
-                end_date = sync_start
+                # If not done, sync again to the original end_date
+                batch_end = end_date
         except ActivityExportTooLarge as ex:
             LOGGER.warn(ex)
-            end_date = last_date.add(seconds=(end_date - last_date).total_seconds() / 2)
-            if end_date > sync_start:
-                end_date = sync_start
+            batch_end = last_date.add(seconds=(batch_end - last_date).total_seconds() / 2)
+            if batch_end > end_date:
+                batch_end = end_date
 
-def sync(client, catalog, state, start_date, bulk_page_size):
+def sync(client, catalog, state, start_date, end_date, bulk_page_size):
     selected_streams = get_selected_streams(catalog)
 
     if not selected_streams:
         return
 
     last_stream = state.get('current_stream')
+
+    end_date = pendulum.parse(end_date) if end_date else None
 
     for bulk_object in BUILT_IN_BULK_OBJECTS:
         should_stream, last_stream = should_sync_stream(selected_streams,
@@ -422,6 +433,7 @@ def sync(client, catalog, state, start_date, bulk_page_size):
                           catalog,
                           state,
                           start_date,
+                          end_date,
                           bulk_object,
                           bulk_page_size)
 
@@ -436,6 +448,7 @@ def sync(client, catalog, state, start_date, bulk_page_size):
                                  state,
                                  catalog,
                                  start_date,
+                                 end_date,
                                  bulk_page_size,
                                  activity_type)
 
@@ -449,6 +462,7 @@ def sync(client, catalog, state, start_date, bulk_page_size):
                           catalog,
                           state,
                           start_date,
+                          end_date,
                           stream_name,
                           bulk_page_size)
 
@@ -482,7 +496,7 @@ def sync(client, catalog, state, start_date, bulk_page_size):
             'stream_id': 'emailGroups',
             'path': 'assets/email/groups',
             'updated_at_col': 'updatedAt'
-        }        
+        }
     ]
 
     for static_endpoint in static_endpoints:
@@ -498,6 +512,7 @@ def sync(client, catalog, state, start_date, bulk_page_size):
                                  catalog,
                                  state,
                                  start_date,
+                                 end_date,
                                  stream_id,
                                  path,
                                  updated_at_col)

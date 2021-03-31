@@ -121,6 +121,7 @@ def main():
                  parsed_args.catalog,
                  parsed_args.state,
                  parsed_args.config['start_date'],
+                 parsed_args.config.get('end_date', None),
                  int(parsed_args.config.get('bulk_page_size', 5000)))
 
 if __name__ == "__main__":
