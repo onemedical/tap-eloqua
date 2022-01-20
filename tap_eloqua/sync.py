@@ -312,7 +312,7 @@ def sync_static_endpoint(client, catalog, state, start_date, end_date, stream_id
     search = "{}>='{}'".format(updated_at_col, last_date)
 
     if end_date:
-        end_date = end_date.to_datetime_string
+        end_date = end_date.to_datetime_string()
         search = "{}{}<'{}'".format(search, updated_at_col, end_date)
         date_range = "from {} to {}".format(last_date, end_date)
     else:
