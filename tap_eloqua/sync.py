@@ -555,6 +555,7 @@ def sync(client, catalog, state, start_date, end_date, bulk_page_size):
             "path": "assets/email/groups",
             "updated_at_col": "updatedAt",
         },
+        {"stream_id": "users", "path": "system/users", "updated_at_col": "updatedAt"},
     ]
 
     for static_endpoint in static_endpoints:

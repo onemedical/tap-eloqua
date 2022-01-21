@@ -71,6 +71,7 @@ PKS = {
     "forms": ["id"],
     "visitors": [],
     "emailGroups": ["id"],
+    "users": ["id"],
 }
 
 for bulk_object in BUILT_IN_BULK_OBJECTS:
@@ -231,7 +232,7 @@ def get_static_schemas():
         SCHEMAS[stream_name] = schema
         pk = PKS[stream_name]
 
-        metadata = []
+        metadata = [{"metadata": {}, "breadcrumb": []}]
         for prop, json_schema in schema["properties"].items():
             if prop in pk:
                 inclusion = "automatic"

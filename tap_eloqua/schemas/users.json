@@ -1,0 +1,38 @@
+{
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "id": {
+        "type": "string"
+      },
+      "type": {
+        "type": "string"
+      },
+      "description": {
+        "type": "string"
+      },
+      "folderId": {
+        "type": "string"
+      },
+      "createdBy": {
+        "type": "string"
+      },
+      "createdAt": {
+        "type": "string",
+        "format": "date-time"
+      },
+      "updatedBy": {
+        "type": "string"
+      },
+      "updatedAt": {
+        "type": "string",
+        "format": "date-time"
+      },
+      "depth": {
+        "type": "string"
+      },
+      "name": {
+        "type": "string"
+      }
+    }
+  }
